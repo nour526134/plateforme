@@ -196,7 +196,7 @@ La plaquette commerciale (`https://www.pme-fictive.lizurey.fr/plaquette.pdf`) a 
 
 ### Synthèse A4
 
-Le dépôt GitHub est la fuite la plus grave de la PME : il expose une clé API de production et des identifiants en clair, publiés par le responsable informatique dont le mot de passe figure déjà dans la fuite (A3). Les métadonnées de la plaquette complètent le tableau en révélant le format des comptes internes et un partage réseau. Un attaquant dispose ainsi de noms, de formats d'identifiants, d'un secret valide et d'une cartographie partielle du réseau interne, sans avoir touché la cible.
+Le dépôt GitHub est la fuite la plus grave de la PME : il expose une clé API de production et des identifiants en clair, publiés par le responsable informatique dont le mot de passe figure déjà dans la fuite (A3). Les métadonnées de la plaquette complètent le tableau en révélant le format des comptes internes et un partage réseau. Un attaquant dispose ainsi de noms, de formats d'identifiants, d'un secret vraisemblablement valide et d'une cartographie partielle du réseau interne, sans avoir touché la cible.
 
 ### Captures d'écran
 
