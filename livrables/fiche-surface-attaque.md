@@ -41,17 +41,13 @@ PME Fictive SAS expose quatre noms (racine, www, extranet, mail), tous hébergé
 *Risque :* la clé vise un service joignable depuis Internet ; elle permettrait vraisemblablement d'injecter ou de modifier des données de l'extranet clients. Le mot de passe de la base n'est pas utilisable directement (adresse privée), mais son format faible (mot + année + caractère) laisse craindre une réutilisation. Le dépôt donne aussi une partie du plan d'adressage interne.
 *Source :* https://github.com/pme-fictive/outils-extranet, consulté le 2026-11-01.
 *Recommandation :* révoquer la clé API et changer le mot de passe `erp_export` aujourd'hui ; rendre le dépôt privé puis purger l'historique (le secret a pu être copié) ; sortir les secrets du code (variables d'environnement, coffre-fort) et activer la détection de secrets (GitHub secret scanning, gitleaks).
-
-**Figure 6 — Secrets en clair dans export_erp.py, dépôt public pme-fictive/outils-extranet (valeurs masquées)**
-![export_erp.py](captures/A4-export-erp-v2.jpeg)
-
 **C2 (haute). Comptes clés dans une fuite, format des identifiants connu.**
 *Vu :* m.d***@ (directrice générale) et t.l***@ (responsable informatique) figurent dans la fuite simulée avec une empreinte de mot de passe de 40 caractères hexadécimaux (format compatible SHA-1). Les adresses suivent la convention `prenom.nom@`, et les métadonnées de la plaquette révèlent un login Windows au format `initiale.nom` (`k.b***`).
 *Risque :* le responsable informatique est l'auteur de C1 et a probablement des droits d'administration. Avec la liste des noms de la page Équipe et le format des logins, un attaquant peut construire des identifiants Active Directory valides et tenter une pulvérisation de mots de passe sur l'extranet, la messagerie ou l'accès distant. La directrice est une cible naturelle d'arnaque au président.
 *Source :* `plateforme/data/fuite-simulee.txt` ; https://www.pme-fictive.lizurey.fr/equipe.html ; métadonnées de https://www.pme-fictive.lizurey.fr/plaquette.pdf.
 *Recommandation :* réinitialiser les mots de passe des deux comptes sur tous les services (AD, Zimbra, extranet, VPN) ; imposer la MFA en commençant par l'accès distant, la messagerie et l'extranet ; bloquer les mots de passe du type « Mot+Année+! » dans la politique AD. Nous n'avons pas testé les identifiants ni cassé les empreintes.
 
-**Figure 7 — Métadonnées de la plaquette : login de l'auteur et chemin interne**
+**Figure 6 — Métadonnées de la plaquette : login de l'auteur et chemin interne**
 ![exiftool plaquette.pdf](captures/A4-exiftool.jpeg)
 
 **C3 (haute). Tous les services sur un seul serveur, extranet et administration exposés.**
@@ -79,7 +75,7 @@ PME Fictive SAS expose quatre noms (racine, www, extranet, mail), tous hébergé
 
 Convention des adresses : `prenom.nom@`. Convention probable des logins Windows : `initiale.nom`. theHarvester ne trouve aucune adresse (domaine trop récent pour être indexé) : seule la lecture du site les révèle. Recommandation : voir C2 ; remplacer les adresses nominatives du site par des adresses de fonction (`direction@`, `rh@`, `recrutement@`) ; sensibiliser la direction et la comptabilité à l'arnaque au président et aux fausses factures ; surveiller le domaine sur Have I Been Pwned.
 
-**Figure 8 — Page Équipe : adresses nominatives publiées**
+**Figure 7 — Page Équipe : adresses nominatives publiées**
 ![Page Équipe](captures/A3-equipe.png)
 
 ## 5. Ce que nous n'avons pas fait et pourquoi
