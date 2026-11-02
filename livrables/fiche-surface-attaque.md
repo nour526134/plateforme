@@ -219,3 +219,23 @@ Le dépôt GitHub est la fuite la plus grave de la PME : il expose une clé API 
 **Figure 13 — Métadonnées de la plaquette (exiftool)**
 
 [Insérer la capture du terminal]
+
+## A5 — Journal de bord
+
+| Horodatage | Action | Outil | Source (URL ou fichier) | Résultat | Cotation |
+|---|---|---|---|---|---|
+| 2026-11-02 | périmètre DNS — certificats TLS | ctlogs.dev (crt.sh indisponible) | https://ctlogs.dev/?q=pme-fictive.lizurey.fr | 4 sous-domaines : www, mail, extranet, pme-fictive.lizurey.fr ; certificats Let's Encrypt valables jusqu'au 23/01/2027 | A2 |
+| 2026-11-02 | résolution DNS des sous-domaines | dig | terminal | 4 noms résolvent tous vers 149.56.98.172 | A1 |
+| 2026-11-02 | enregistrements MX, TXT, NS | dig | terminal | MX → mail.pme-fictive.lizurey.fr ; SPF : v=spf1 mx -all ; NS : ns1.amenworld.com, ns2.amenworld.com | A1 |
+| 2026-11-02 | archives Wayback Machine | Wayback Machine | https://web.archive.org | Aucun résultat exploitable | A1 |
+| 2026-11-02 | exposition services — IP 149.56.98.172 | Shodan | https://www.shodan.io/host/149.56.98.172 | Ports 22 (OpenSSH 10.0p2, Debian), 80 (Caddy, redirection HTTPS), 443 (HTTP 400, Ncat proxy) ; hébergé OVH Montréal ; aucune CVE signalée | B2 |
+| 2026-11-02 | personnes et adresses mail | theHarvester 4.11.1 | terminal (sources crtsh, duckduckgo, hackertarget) | 0 adresse mail trouvée ; 2 hôtes confirmés (extranet, mail) sur 149.56.98.172 ; source bing non supportée | A2 |
+| 2026-11-02 | personnes et adresses mail | consultation manuelle site web | https://www.pme-fictive.lizurey.fr/equipe.html et /recrutement.html | 4 adresses : m.d***@, t.l***@, k.b***@, contact@ ; convention prenom.nom@ | A1 |
+| 2026-11-02 | vérification fuite de données | grep | data/fuite-simulee.txt | m.d***@ et t.l***@ présents avec hash SHA-1 | F3 (fuite) / A1 (présence) |
+| 2026-11-02 | recherche GitHub | navigateur | https://github.com/pme-fictive/outils-extranet | Dépôt public : clé API de prod pmf_live_7f3a*** et mot de passe BDD erp_export/Export2*** en clair dans export_erp.py | A1 |
+| 2026-11-02 | dorks moteurs de recherche | Google | site:pme-fictive.lizurey.fr filetype:pdf ; "pme-fictive.lizurey.fr" password ; site:pme-fictive.lizurey.fr intitle:"index of" | Aucun résultat (domaine créé le 25/10/2026, non indexé) | A1 |
+| 2026-11-02 | métadonnées plaquette PDF | exiftool 12.76 | https://www.pme-fictive.lizurey.fr/plaquette.pdf | Author : k.b*** (format login AD initiale.nom) ; chemin D:\Partage\Communication\ ; Adobe InDesign 18.5 Windows ; créé 11/04/2023 | A1 |
+
+## A6 — Carte de la surface d'attaque (Maltego Graph)
+
+![Carte de la surface d'attaque — Maltego Graph](captures/A6-maltego.png)
