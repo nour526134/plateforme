@@ -8,16 +8,16 @@ Le site crt.sh étant indisponible, nous avons utilisé l'alternative ctlogs.dev
 
 L'analyse des certificats a permis d'identifier les noms suivants :
 
-| Nom DNS | Rôle possible |
-|---|---|
-| pme-fictive.lizurey.fr | Site principal |
-| www.pme-fictive.lizurey.fr | Site web |
-| mail.pme-fictive.lizurey.fr | Service de messagerie |
-| extranet.pme-fictive.lizurey.fr | Portail extranet |
+| Nom DNS                         | Rôle possible         | 
+|                                 |                       |
+| pme-fictive.lizurey.fr          | Site principal        |
+| www.pme-fictive.lizurey.fr      | Site web              |
+| mail.pme-fictive.lizurey.fr     | Service de messagerie |
+| extranet.pme-fictive.lizurey.fr | Portail extranet      |
 
 Les certificats consultés ont été délivrés par Let's Encrypt le 25 octobre 2026 et sont valables jusqu'au 23 janvier 2027.
 
-Nous avons ensuite utilisé la commande `dig` pour vérifier la résolution DNS de ces noms. Les quatre noms pointent vers la même adresse IPv4 : **149.56.98.172**.
+Nous avons ensuite utilisé la commande `dig` pour vérifier la résolution DNS de ces noms. Les quatre noms pointent vers la même adresse IPv4 : 149.56.98.172**.
 
 Nous avons également identifié les informations DNS suivantes :
 
@@ -34,16 +34,16 @@ Enfin, nous avons essayé de consulter les archives de Wayback Machine pour rech
 ### Captures d'écran
 
 **Figure 1 — Sous-domaines identifiés dans les certificats TLS**
+![Résultats DNS](captures/A1-dns.png)
 
-[Insérer la capture ctlogs.dev montrant le champ SAN]
+
 
 **Figure 2 — Résolution DNS des sous-domaines**
+![Certificats TLS](captures/A1-certificats.png)
 
-[Insérer la capture du terminal montrant les quatre adresses IP]
 
 **Figure 3 — Enregistrements DNS MX, TXT et NS**
-
-[Insérer la capture du terminal montrant les enregistrements DNS]
+![Informations Shodan](captures/A2-shodan.png)
 
 
 ## A2 — Exposition des services
@@ -74,11 +74,15 @@ Aucune CVE n'a été signalée dans les résultats Shodan consultés. Cela ne ga
 
 **Figure 4 — Informations générales du serveur**
 
-[Insérer la capture Shodan montrant l'adresse IP, OVH, Montréal et Linux]
+![Informations générales Shodan](captures/A2-shodan.png)
 
-**Figure 5 — Services exposés**
+**Figure 5 — Service SSH exposé (port 22)**
 
-[Insérer la capture Shodan montrant les ports 22, 80 et 443]
+![Bannière OpenSSH](captures/A2-port22.png)
+
+**Figure 6 — Services HTTP et HTTPS (ports 80 et 443)**
+
+![Bannières HTTP et HTTPS](captures/A2-ports80-443.png)
 
 ## A3 — Personnes et adresses
 
