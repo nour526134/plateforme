@@ -1,4 +1,4 @@
-# Surface d'attaque exposée — PME Fictive SAS (fictive) — TLP:AMBER — 2026-11-02
+# Surface d'attaque exposée — PME Fictive SAS (fictive) — TLP:AMBER — 2026-11-01
 
 **Marquage TLP:AMBER** : la fiche décrit des faiblesses exploitables et des identifiants exposés d'une organisation nommée ; diffusion limitée à la PME et au CERT.
 
