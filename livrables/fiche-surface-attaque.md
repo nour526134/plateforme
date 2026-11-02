@@ -43,7 +43,7 @@ PME Fictive SAS expose quatre noms (racine, www, extranet, mail), tous hébergé
 *Recommandation :* révoquer la clé API et changer le mot de passe `erp_export` aujourd'hui ; rendre le dépôt privé puis purger l'historique (le secret a pu être copié) ; sortir les secrets du code (variables d'environnement, coffre-fort) et activer la détection de secrets (GitHub secret scanning, gitleaks).
 
 **Figure 6 — Secrets en clair dans export_erp.py, dépôt public pme-fictive/outils-extranet (valeurs masquées)**
-![export_erp.py](captures/A4-export-erp.jpeg)
+![export_erp.py](captures/A4-export-erp-v2.jpeg)
 
 **C2 (haute). Comptes clés dans une fuite, format des identifiants connu.**
 *Vu :* m.d***@ (directrice générale) et t.l***@ (responsable informatique) figurent dans la fuite simulée avec une empreinte de mot de passe de 40 caractères hexadécimaux (format compatible SHA-1). Les adresses suivent la convention `prenom.nom@`, et les métadonnées de la plaquette révèlent un login Windows au format `initiale.nom` (`k.b***`).
