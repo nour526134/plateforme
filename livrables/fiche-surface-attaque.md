@@ -19,7 +19,7 @@ PME Fictive SAS expose quatre noms (racine, www, extranet, mail), tous hébergé
 
 **Au niveau de l'IP** (serveur Linux, OVH, Montréal) : Shodan voit 22/tcp (OpenSSH 10.0p2 Debian), 80/tcp (Caddy, redirection 308 vers HTTPS) et 443/tcp (réponse 400 Bad Request, identifié comme « Ncat HTTP proxy »). Aucune CVE suggérée, ce qui ne garantit pas l'absence de vulnérabilité. La réponse 400 s'explique par un reverse proxy : Shodan interroge l'IP sans nom d'hôte et ne voit donc pas ce que chaque sous-domaine sert. La Wayback Machine ne révèle aucun ancien sous-domaine.
 
-**Figure 1 — Certificat Let's Encrypt couvrant 4 noms (ctlogs.dev)**
+**Figure 1 — Certificats Let's Encrypt du domaine, tous émis le 25/10/2026 (ctlogs.dev)**
 ![Certificat à 4 SAN](captures/A1-certificats.png)
 
 **Figure 2 — Résolution DNS des sous-domaines**
@@ -51,10 +51,7 @@ PME Fictive SAS expose quatre noms (racine, www, extranet, mail), tous hébergé
 *Source :* `plateforme/data/fuite-simulee.txt` ; https://www.pme-fictive.lizurey.fr/equipe.html ; métadonnées de https://www.pme-fictive.lizurey.fr/plaquette.pdf.
 *Recommandation :* réinitialiser les mots de passe des deux comptes sur tous les services (AD, Zimbra, extranet, VPN) ; imposer la MFA en commençant par l'accès distant, la messagerie et l'extranet ; bloquer les mots de passe du type « Mot+Année+! » dans la politique AD. Nous n'avons pas testé les identifiants ni cassé les empreintes.
 
-**Figure 7 — Adresses de la PME dans la fuite simulée (empreintes masquées)**
-![Fuite simulée](captures/A3-fuite.png)
-
-**Figure 8 — Métadonnées de la plaquette : login de l'auteur et chemin interne**
+**Figure 7 — Métadonnées de la plaquette : login de l'auteur et chemin interne**
 ![exiftool plaquette.pdf](captures/A4-exiftool.jpeg)
 
 **C3 (haute). Tous les services sur un seul serveur, extranet et administration exposés.**
@@ -82,7 +79,7 @@ PME Fictive SAS expose quatre noms (racine, www, extranet, mail), tous hébergé
 
 Convention des adresses : `prenom.nom@`. Convention probable des logins Windows : `initiale.nom`. theHarvester ne trouve aucune adresse (domaine trop récent pour être indexé) : seule la lecture du site les révèle. Recommandation : voir C2 ; remplacer les adresses nominatives du site par des adresses de fonction (`direction@`, `rh@`, `recrutement@`) ; sensibiliser la direction et la comptabilité à l'arnaque au président et aux fausses factures ; surveiller le domaine sur Have I Been Pwned.
 
-**Figure 9 — Page Équipe : adresses nominatives publiées**
+**Figure 8 — Page Équipe : adresses nominatives publiées**
 ![Page Équipe](captures/A3-equipe.png)
 
 ## 5. Ce que nous n'avons pas fait et pourquoi
@@ -113,7 +110,7 @@ Convention des adresses : `prenom.nom@`. Convention probable des logins Windows 
 | 2026-11-01 17:58 | Dorks | Google | filetype:pdf ; "…" password ; intitle:"index of" | aucun résultat (domaine non indexé) | A2 |
 | 2026-11-01 18:03 | Métadonnées de la plaquette | exiftool 12.76 | https://www.pme-fictive.lizurey.fr/plaquette.pdf | auteur k.b*** ; D:\Partage\Communication\ ; InDesign 18.5 Windows ; 11/04/2023 | A1 |
 | 2026-11-01 18:20 | Vérification du journal et cotation Admiralty | — | lignes ci-dessus | chaque trouvaille a une source, une date et une cotation | — |
-| 2026-11-01 18:35 | Carte de la surface d'attaque | Maltego Graph (Basic) | transformations passives | graphe domaine → noms → IP → netblock + adresses | A2 |
+| 2026-11-01 18:35 | Carte de la surface d'attaque | Maltego Graph (Basic) | transformations passives | graphe domaine → 3 noms → 1 IP, + 3 adresses rattachées au domaine | A2 |
 
 ## 7. Carte de la surface d'attaque (annexe)
 
@@ -121,5 +118,5 @@ Convention des adresses : `prenom.nom@`. Convention probable des logins Windows 
 
 Légende :
 1. Le domaine au centre ; tous les noms convergent vers une seule IP, 149.56.98.172 : un seul serveur porte site, extranet et messagerie.
-2. L'IP appartient au bloc d'un hébergeur (OVH) : une compromission ou une panne de ce serveur touche tous les services d'un coup.
-3. Les adresses fuitées se rattachent au même domaine que l'extranet et la messagerie : c'est le chemin le plus court d'un identifiant fuité vers un accès.
+2. Cette IP est un VPS loué chez OVH (d'après Shodan) : une compromission ou une panne de ce serveur touche tous les services d'un coup.
+3. Les adresses publiées, dont deux figurent dans la fuite, se rattachent au même domaine que l'extranet et la messagerie : c'est le chemin le plus court d'un identifiant fuité vers un accès.
