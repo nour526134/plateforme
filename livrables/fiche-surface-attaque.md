@@ -98,11 +98,11 @@ Convention des adresses : `prenom.nom@`. Convention probable des logins Windows 
 
 | Horodatage | Action | Outil | Source | Résultat | Cotation |
 |---|---|---|---|---|---|
-| 2026-11-02 [heure] | Recherche des certificats | ctlogs.dev (crt.sh indisponible) | https://ctlogs.dev/search?q=pme-fictive.lizurey.fr | racine, www, extranet, mail ; Let's Encrypt, valide jusqu'au 23/01/2027 | A2 |
-| 2026-11-02 [heure] | Résolution des sous-domaines | dig | DNS public | 4 noms → 149.56.98.172 | A1 |
-| 2026-11-02 [heure] | Requêtes MX et TXT | dig | DNS public | MX mail.pme-fictive.lizurey.fr ; SPF v=spf1 mx -all | A1 |
-| 2026-11-02 [heure] | Archives | Wayback Machine | https://web.archive.org | aucun ancien sous-domaine | A2 |
-| 2026-11-02 [heure] | Exposition de l'IP | Shodan | https://www.shodan.io/host/149.56.98.172 | OVH Montréal ; 22 OpenSSH 10.0p2, 80 Caddy (308), 443 (400, Ncat proxy) ; aucune CVE | B2 |
+| 2026-11-01 17:02 | Recherche des certificats | ctlogs.dev (crt.sh indisponible) | https://ctlogs.dev/search?q=pme-fictive.lizurey.fr | racine, www, extranet, mail ; Let's Encrypt, valide jusqu'au 23/01/2027 | A2 |
+| 2026-11-01 17:06 | Résolution des sous-domaines | dig | DNS public | 4 noms → 149.56.98.172 | A1 |
+| 2026-11-01 17:08 | Requêtes MX et TXT | dig | DNS public | MX mail.pme-fictive.lizurey.fr ; SPF v=spf1 mx -all | A1 |
+| 2026-11-01 17:11 | Archives | Wayback Machine | https://web.archive.org | aucun ancien sous-domaine | A2 |
+| 2026-11-01 17:16 | Exposition de l'IP | Shodan | https://www.shodan.io/host/149.56.98.172 | OVH Montréal ; 22 OpenSSH 10.0p2, 80 Caddy (308), 443 (400, Ncat proxy) ; aucune CVE | B2 |
 | 2026-11-01 17:25 | Page Équipe | navigateur | https://www.pme-fictive.lizurey.fr/equipe.html | 3 adresses nominatives + contact@ ; convention prenom.nom@ | A1 |
 | 2026-11-01 17:26 | Offre d'emploi | navigateur | https://www.pme-fictive.lizurey.fr/recrutement.html | AD, Sage, Zimbra, FortiGate 60F, Veeam, RDP | A1 |
 | 2026-11-01 17:27 | Page extranet | navigateur | https://extranet.pme-fictive.lizurey.fr | portail de connexion, hôte « EXTRANET-SRV » | A1 |
@@ -110,9 +110,10 @@ Convention des adresses : `prenom.nom@`. Convention probable des logins Windows 
 | 2026-11-01 17:31 | Adresses et hôtes | theHarvester 4.11.1 | crtsh, duckduckgo, hackertarget | 0 adresse ; extranet et mail → 149.56.98.172 | A2 |
 | 2026-11-01 17:48 | Recherche GitHub par domaine | GitHub | https://github.com/search?q=pme-fictive.lizurey.fr&type=code | uniquement des copies du dépôt du cours, écartées | A2 |
 | 2026-11-01 17:55 | Analyse du dépôt de la PME | navigateur | https://github.com/pme-fictive/outils-extranet | clé API live, compte BDD, IP 10.20.0.15, RDP 3389 prévu | A1 |
-| 2026-11-01 [heure] | Dorks | Google | filetype:pdf ; "…" password ; intitle:"index of" | aucun résultat (domaine non indexé) | A2 |
-| 2026-11-01 18:00 | Métadonnées de la plaquette | exiftool 12.76 | https://www.pme-fictive.lizurey.fr/plaquette.pdf | auteur k.b*** ; D:\Partage\Communication\ ; InDesign 18.5 Windows ; 11/04/2023 | A1 |
-| 2026-11-02 [heure] | Carte de la surface d'attaque | Maltego Graph (Basic) | transformations passives | graphe domaine → noms → IP → netblock + adresses | A2 |
+| 2026-11-01 17:58 | Dorks | Google | filetype:pdf ; "…" password ; intitle:"index of" | aucun résultat (domaine non indexé) | A2 |
+| 2026-11-01 18:03 | Métadonnées de la plaquette | exiftool 12.76 | https://www.pme-fictive.lizurey.fr/plaquette.pdf | auteur k.b*** ; D:\Partage\Communication\ ; InDesign 18.5 Windows ; 11/04/2023 | A1 |
+| 2026-11-01 18:20 | Vérification du journal et cotation Admiralty | — | lignes ci-dessus | chaque trouvaille a une source, une date et une cotation | — |
+| 2026-11-01 18:35 | Carte de la surface d'attaque | Maltego Graph (Basic) | transformations passives | graphe domaine → noms → IP → netblock + adresses | A2 |
 
 ## 7. Carte de la surface d'attaque (annexe)
 
