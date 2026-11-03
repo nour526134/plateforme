@@ -1,6 +1,9 @@
 # Image d'outils IT320 : OSINT + détection + clients MISP
 FROM python:3.12-slim
 
+# Réseau d'école lent ou saturé : le délai de lecture par défaut de pip (15 s) a fait échouer le build le 28 octobre 2026
+ENV PIP_DEFAULT_TIMEOUT=120 PIP_RETRIES=10
+
 # build-essential : dnstwist[full] dépend de py-tlsh, sans wheel précompilée pour Python 3.12 (compilation C++ au pip install)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git curl ca-certificates yara jq dnsutils whois build-essential \

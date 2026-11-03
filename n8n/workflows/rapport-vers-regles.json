@@ -32,6 +32,15 @@
         "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, prompt: $json.prompt_yara, stream: false, options: { temperature: 0, num_ctx: 8192 } }) }}",
         "options": {
           "timeout": 300000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.OLLAMA_AUTH || '' }}"
+            }
+          ]
         }
       },
       "name": "Ollama YARA",
@@ -52,6 +61,15 @@
         "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, prompt: $json.prompt_sigma, stream: false, options: { temperature: 0, num_ctx: 8192 } }) }}",
         "options": {
           "timeout": 300000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.OLLAMA_AUTH || '' }}"
+            }
+          ]
         }
       },
       "name": "Ollama Sigma",
@@ -72,6 +90,15 @@
         "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, prompt: $json.prompt_attack, format: 'json', stream: false, options: { temperature: 0, num_ctx: 8192 } }) }}",
         "options": {
           "timeout": 300000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.OLLAMA_AUTH || '' }}"
+            }
+          ]
         }
       },
       "name": "Ollama ATT&CK",

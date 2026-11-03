@@ -26,7 +26,7 @@ Dans l'ordre, depuis le dossier `plateforme/` :
 cp .env.example .env
 # 1. Générer la clé API MISP AVANT le premier `up` (elle est injectée à l'initialisation de misp-core et lue par n8n) :
 python3 -c "import secrets;print(secrets.token_hex(20))"      # -> MISP_API_KEY dans .env
-# 2. Compléter le reste de .env : OLLAMA_URL (donné au tableau), OTX_API_KEY, ABUSECH_AUTH_KEY, mots de passe.
+# 2. Compléter le reste de .env : OLLAMA_URL et OLLAMA_AUTH (donnés au tableau), OTX_API_KEY, ABUSECH_AUTH_KEY, mots de passe.
 # 3. Créer les dossiers écrits par les conteneurs et les rendre inscriptibles (Cowrie = uid 999, n8n = uid 1000) :
 sh tools/init-dirs.sh                 # équivalent : mkdir -p data/cowrie out && chmod -R 777 data/cowrie out
 # 4. Lancer :
@@ -36,9 +36,17 @@ docker compose ps                     # attendre que misp-nginx soit healthy (3 
 
 MISP : https://localhost:8443 (certificat auto-signé ; compte `MISP_ADMIN_EMAIL` / `MISP_ADMIN_PASSWORD`, mot de passe à changer à la première connexion). La clé API de `.env` est déjà active : inutile d'en créer une dans l'interface. n8n : http://localhost:5678 (créer le compte propriétaire au premier accès). Cowrie : `ssh -p 2222 root@localhost`.
 
-Si vous avez lancé `up` sans clé API : arrêtez (`docker compose down -v`, ce qui efface les volumes MISP), renseignez `MISP_API_KEY`, relancez. Sinon, créez la clé dans MISP (Administration → List Auth Keys → Add), copiez-la dans `.env` et redémarrez n8n (`docker compose up -d n8n`).
+Si vous avez lancé `up` sans clé API : arrêtez (`docker compose down -v`, ce qui efface les volumes MISP), renseignez `MISP_API_KEY`, relancez. Sinon, créez la clé dans MISP (Administration → List Auth Keys → Add), copiez-la dans `.env` et redémarrez n8n (`docker compose up -d n8n`). Plus simple, sans rien effacer : corrigez `MISP_API_KEY` dans `.env` (40 caractères hexadécimaux, vérifiables par `grep -cE '^MISP_API_KEY=[0-9a-f]{40}$' .env`, qui doit afficher `1`), puis `docker compose exec misp-core /var/www/MISP/app/Console/cake user change_authkey admin@admin.test $(grep '^MISP_API_KEY=' .env | cut -d= -f2)` et `docker compose up -d n8n`. Symptôme d'une clé refusée : « Forbidden » dans n8n, `403` sur l'API.
 
-OpenCTI (séance 4, sur la VM du groupe) : prérequis `sudo sysctl -w vm.max_map_count=262144` (à persister dans `/etc/sysctl.d/99-opensearch.conf`), compléter la section OpenCTI de `.env` (quatre UUID : `OPENCTI_ADMIN_TOKEN`, `OPENCTI_HEALTHCHECK_ACCESS_KEY`, `CONNECTOR_MITRE_ID`, `CONNECTOR_MISP_ID`), puis `docker compose -f docker-compose.opencti.yml up -d` ; interface sur http://<vm>:8080 ; premier démarrage 10 à 15 min.
+OpenCTI, séance 4 : en 2026, vous n'installez pas OpenCTI. Vous importez vos données dans l'OpenCTI mutualisé, avec le compte de votre groupe. Pour exporter un événement de votre MISP au format attendu, depuis `plateforme/` :
+
+```
+docker compose --profile tools run --rm osint-tools misp-vers-opencti.py <id d'événement> <numéro de groupe>
+```
+
+Le fichier est écrit dans `out/`, et l'import se fait par *Data* → *Import* (voir `seance4/tp.md`, partie B). L'en-tête du script explique ce qu'il retire et pourquoi.
+
+Votre propre OpenCTI (sur une VM du groupe, ou chez vous avec 16 Go de RAM : facultatif en 2026) : prérequis `sudo sysctl -w vm.max_map_count=262144` (à persister dans `/etc/sysctl.d/99-opensearch.conf`), compléter la section OpenCTI de `.env` (six UUID : `OPENCTI_ADMIN_TOKEN`, `OPENCTI_HEALTHCHECK_ACCESS_KEY`, `CONNECTOR_MITRE_ID`, `CONNECTOR_MISP_ID`, `CONNECTOR_EXPORT_STIX_ID`, `CONNECTOR_IMPORT_STIX_ID`), puis `docker compose -f docker-compose.opencti.yml up -d` ; interface sur http://<vm>:8080 ; premier démarrage 10 à 15 min, puis le connecteur MITRE charge ATT&CK pendant plus d'une heure (mesuré le 1er novembre 2026) : la plateforme est utilisable pendant ce temps, mais les relations arrivent en dernier.
 
 ### Outils en ligne de commande (conteneur `osint-tools`)
 
@@ -62,11 +70,11 @@ Depuis ce conteneur, MISP est joignable à `https://misp-nginx:8443` (variable `
 | Service | Variable `.env` | Obtention | Nécessaire pour |
 |---|---|---|---|
 | MISP | `MISP_API_KEY` | générée par vous (40 hex) avant le premier `up` | n8n, scripts `tools/` |
-| abuse.ch (URLhaus, Feodo Tracker, MalwareBazaar, ThreatFox) | `ABUSECH_AUTH_KEY` | compte gratuit sur https://auth.abuse.ch | flux MISP abuse.ch du TP 2 (A2) |
+| abuse.ch (URLhaus, Feodo Tracker, MalwareBazaar, ThreatFox) | `ABUSECH_AUTH_KEY` | compte gratuit sur https://auth.abuse.ch | facultatif : flux URLhaus du TP 2 (A2, optionnel) |
 | AlienVault OTX | `OTX_API_KEY` | compte gratuit sur https://otx.alienvault.com | `tools/otx-to-misp.py` |
 | Shodan (facultatif) | `SHODAN_API_KEY` | compte Shodan | enrichissement bonus |
 
-**abuse.ch exige une Auth-Key depuis le 30 juin 2025** pour ses API et ses flux : sans clé, les flux MISP « URLHaus Malware URLs » et « Feodo IP Blocklist » renvoient une erreur ou un fichier vide. Dans MISP : Administration → Server Settings & Maintenance → Plugin settings → `Plugin.Feed_abusech_auth_key` (coller la clé), puis Sync Actions → List Feeds → fetch. **Repli sans clé** (TP 2 A2) : les flux par défaut « CIRCL OSINT Feed » (format MISP) et « The Botvrij.eu Data » (format MISP) fonctionnent sans authentification ; activez-les si abuse.ch échoue.
+**Flux MISP du TP 2 (état vérifié le 28 octobre 2026).** Les flux par défaut « CIRCL OSINT Feed » et « The Botvrij.eu Data » (format MISP) fonctionnent sans authentification : ce sont ceux du TP. Côté abuse.ch, qui exige une Auth-Key depuis le 30 juin 2025 : le flux par défaut « URLHaus Malware URLs » de MISP 2.5.50 pointe vers `https://urlhaus.abuse.ch/downloads/csv_recent/`, qui répond `410 Gone` avec ou sans clé ; l'export se télécharge désormais à `https://urlhaus-api.abuse.ch/v2/files/exports/<clé>/recent.csv`, la clé dans le chemin (page https://urlhaus.abuse.ch/api/) : modifier l'URL du flux dans MISP, et ne jamais pousser cette configuration dans le dépôt. « Feodo IP Blocklist » répond encore, mais Feodo Tracker annonce que ses jeux de données sont vides : le fichier ne contient plus que quatre entrées de mars 2026.
 
 ## Contenu
 
@@ -92,15 +100,16 @@ Toutes les données de `data/` sont générées par `tools/make-data.py` (synth�
 
 **n8n : `EACCES: permission denied, open '/out/...'`.** Le dossier `out/` n'est pas inscriptible par l'uid 1000 : `sh tools/init-dirs.sh` (ou `chmod -R 777 out`), puis relancer l'exécution. Même cause si Cowrie redémarre en boucle : `chmod -R 777 data/cowrie`.
 
-**n8n : `$env.OLLAMA_URL` vide ou `require is not defined`.** Vérifiez `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` et `NODE_FUNCTION_ALLOW_BUILTIN=*` dans `docker-compose.yml`, et que l'image est bien une 1.x (`n8nio/n8n:1.100.1`) : n8n 2.x isole les nœuds Code dans des task runners sans accès au système de fichiers ni aux variables d'environnement par défaut.
+**n8n : `$env.OLLAMA_URL` vide ou `require is not defined`.** Vérifiez `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` et `NODE_FUNCTION_ALLOW_BUILTIN=*` dans `docker-compose.yml`, et que l'image est bien une 1.x (`n8nio/n8n:1.123.62`, celle de `docker-compose.yml`) : n8n 2.x isole les nœuds Code dans des task runners sans accès au système de fichiers ni aux variables d'environnement par défaut.
 
 **Ollama injoignable.** Testez depuis le poste puis depuis n8n :
 ```
-curl -s $OLLAMA_URL/api/tags | head -c 300
-docker compose exec n8n wget -qO- $OLLAMA_URL/api/tags | head -c 300
-curl -s $OLLAMA_URL/api/generate -d '{"model":"qwen2.5:7b-instruct","prompt":"Réponds OK","stream":false}'
+set -a; . ./.env; set +a      # charge OLLAMA_URL et OLLAMA_AUTH dans le shell
+curl -s -H "Authorization: $OLLAMA_AUTH" $OLLAMA_URL/api/tags | head -c 300
+docker compose exec n8n sh -c 'wget -qO- --header="Authorization: $OLLAMA_AUTH" $OLLAMA_URL/api/tags' | head -c 300
+curl -s -H "Authorization: $OLLAMA_AUTH" $OLLAMA_URL/api/generate -d '{"model":"qwen2.5:7b-instruct","prompt":"Réponds OK","stream":false}'
 ```
-Si le premier marche et pas le deuxième : résolution DNS du conteneur (utilisez l'IP), ou pare-feu de la salle. Si le modèle n'est pas listé dans `/api/tags`, changez `OLLAMA_MODEL`.
+Si le premier marche et pas le deuxième : résolution DNS du conteneur (utilisez l'IP), ou pare-feu de la salle. Une réponse 401 : `OLLAMA_AUTH` manque ou est faux dans `.env` (après correction : `docker compose up -d n8n` pour que n8n relise la variable). Si le modèle n'est pas listé dans `/api/tags`, changez `OLLAMA_MODEL`.
 
 **Flux abuse.ch vide ou en erreur dans MISP.** Auth-Key manquante (voir « Clés API ») ; repli : CIRCL OSINT Feed et Botvrij.eu.
 

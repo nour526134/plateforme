@@ -32,7 +32,7 @@
     },
     {
       "parameters": {
-        "url": "https://www.cert.ssi.gouv.fr/alerte/feed/",
+        "url": "https://www.cert.cyber.gouv.fr/alerte/feed/",
         "options": {}
       },
       "name": "RSS CERT-FR (alertes)",
@@ -45,7 +45,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// TP : remplace le RSS par les 3 alertes figées de /data/certfr.\n// L'alerte piégée (alerte-piegee*.xml, exercice B4) est EXCLUE par défaut : passez INCLURE_PIEGEE à true\n// (ou lancez le workflow depuis le déclencheur « Exécution manuelle (B4 injection) ») pour l'inclure.\nconst fs = require('fs');\nconst dir = '/data/certfr/';\nconst INCLURE_PIEGEE = false;\nconst viaB4 = $prevNode && $prevNode.name === 'Exécution manuelle (B4 injection)';\nconst inclurePiegee = INCLURE_PIEGEE || viaB4;\nconst items = [];\nfor (const f of fs.readdirSync(dir).filter(n => n.endsWith('.xml') || n.endsWith('.txt')).sort()) {\n  if (f.startsWith('alerte-piegee') && !inclurePiegee) continue;\n  const content = fs.readFileSync(dir + f, 'utf8');\n  items.push({ json: { title: f, link: 'file://' + dir + f, content, isoDate: new Date().toISOString() } });\n}\nreturn items;"
+        "jsCode": "// TP : remplace le RSS par les 3 alertes figées de /data/certfr.\n// L'alerte piégée (alerte-piegee*.xml, exercice B4) est EXCLUE par défaut : pour l'inclure, passez INCLURE_PIEGEE à true.\n// (n8n n'accepte qu'un seul déclencheur manuel par workflow : pas de déclencheur séparé pour B4.)\nconst fs = require('fs');\nconst dir = '/data/certfr/';\nconst INCLURE_PIEGEE = false;\nconst items = [];\nfor (const f of fs.readdirSync(dir).filter(n => n.endsWith('.xml') || n.endsWith('.txt')).sort()) {\n  if (f.startsWith('alerte-piegee') && !INCLURE_PIEGEE) continue;\n  const content = fs.readFileSync(dir + f, 'utf8');\n  items.push({ json: { title: f, link: 'file://' + dir + f, content, isoDate: new Date().toISOString() } });\n}\nreturn items;"
       },
       "name": "Lecture fichiers test",
       "type": "n8n-nodes-base.code",
@@ -88,6 +88,15 @@
         "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, prompt: $json.prompt, format: 'json', stream: false, options: { temperature: 0, num_ctx: 8192 } }) }}",
         "options": {
           "timeout": 180000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.OLLAMA_AUTH || '' }}"
+            }
+          ]
         }
       },
       "name": "Ollama /api/generate",
@@ -178,7 +187,13 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ Event: $json.Event }) }}",
         "options": {
-          "allowUnauthorizedCerts": true
+          "allowUnauthorizedCerts": true,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          }
         }
       },
       "name": "MISP /events/add",
@@ -212,17 +227,6 @@
         2340,
         300
       ]
-    },
-    {
-      "parameters": {},
-      "name": "Exécution manuelle (B4 injection)",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        0,
-        700
-      ],
-      "notes": "Déclencheur du test d'injection (TP 2, B4) : la lecture des fichiers inclut alors alerte-piegee.xml."
     }
   ],
   "connections": {
@@ -348,17 +352,6 @@
         [
           {
             "node": "Journal des mesures",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Exécution manuelle (B4 injection)": {
-      "main": [
-        [
-          {
-            "node": "Lecture fichiers test",
             "type": "main",
             "index": 0
           }
