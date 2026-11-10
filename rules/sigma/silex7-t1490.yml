@@ -1,0 +1,31 @@
+title: SILEX-7 - Suppression des clichés instantanés ou du catalogue de sauvegarde
+id: 8d4f6b2a-3c1e-4a7f-9b5d-2e6c8a0f1d73
+status: experimental
+description: Détecte la suppression des clichés instantanés (vssadmin delete shadows) ou du catalogue de sauvegarde (wbadmin delete catalog), réalisée par SILEX-7 juste avant le chiffrement.
+references:
+  - https://attack.mitre.org/techniques/T1490/
+  - IT320-TR-2026-03 (data/rapport-acteur.md, section 3 étape 6)
+author: Groupe 7
+date: 2026-11-10
+tags:
+  - attack.impact
+  - attack.t1490
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_vssadmin:
+    Image|endswith: '\vssadmin.exe'
+    CommandLine|contains|all:
+      - 'delete'
+      - 'shadows'
+  selection_wbadmin:
+    Image|endswith: '\wbadmin.exe'
+    CommandLine|contains|all:
+      - 'delete'
+      - 'catalog'
+  condition: 1 of selection_*
+falsepositives:
+  - Administrateur supprimant manuellement des clichés instantanés (rare, à confirmer auprès de l'exploitation)
+  - Script de maintenance ou logiciel de sauvegarde qui purge d'anciens clichés
+level: high
