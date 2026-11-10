@@ -1,0 +1,400 @@
+{
+  "name": "TP2 - B3 - Validation renforcée",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "name": "Cron (toutes les heures)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fcd1ea44-e899-4b30-90c2-b4e2a7e56866"
+    },
+    {
+      "parameters": {},
+      "name": "Exécution manuelle (TP)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ],
+      "id": "cca61f54-6b24-4b7b-af0e-abe32baf0c4d"
+    },
+    {
+      "parameters": {
+        "url": "https://www.cert.cyber.gouv.fr/alerte/feed/",
+        "options": {}
+      },
+      "name": "RSS CERT-FR (alertes)",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        272,
+        0
+      ],
+      "id": "24ca8472-5d8c-4f7d-a59a-2f30efcf7ba4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TP : remplace le RSS par les 3 alertes figées de /data/certfr.\n// L'alerte piégée (alerte-piegee*.xml, exercice B4) est EXCLUE par défaut : pour l'inclure, passez INCLURE_PIEGEE à true.\n// (n8n n'accepte qu'un seul déclencheur manuel par workflow : pas de déclencheur séparé pour B4.)\nconst fs = require('fs');\nconst dir = '/data/certfr/';\nconst INCLURE_PIEGEE = true;\nconst items = [];\nfor (const f of fs.readdirSync(dir).filter(n => n.endsWith('.xml') || n.endsWith('.txt')).sort()) {\n  if (f.startsWith('alerte-piegee') && !INCLURE_PIEGEE) continue;\n  const content = fs.readFileSync(dir + f, 'utf8');\n  items.push({ json: { title: f, link: 'file://' + dir + f, content, isoDate: new Date().toISOString() } });\n}\nreturn items;"
+      },
+      "name": "Lecture fichiers test",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        208
+      ],
+      "id": "cbb8e3d6-801e-4af8-b502-ac67dc723343"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ne traite que les alertes jamais vues (mémoire persistante du workflow).\n// Attention : $getWorkflowStaticData n'est PERSISTÉ que pour les exécutions déclenchées (Cron) d'un workflow actif ;\n// en exécution manuelle (bouton « Test workflow »), la mémoire repart vide à chaque lancement — pratique pour le TP.\nconst seen = $getWorkflowStaticData('global');\nseen.links = seen.links || [];\nconst out = [];\nfor (const item of $input.all()) {\n  const key = item.json.link || item.json.title;\n  if (!seen.links.includes(key)) { seen.links.push(key); out.push(item); }\n}\nif (seen.links.length > 500) seen.links = seen.links.slice(-500);\nreturn out;"
+      },
+      "name": "Filtre nouveautés",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        112
+      ],
+      "id": "355582fc-ff58-4965-abad-70a86aece3e3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construit le prompt à partir du gabarit versionné dans /prompts.\nconst fs = require('fs');\nconst template = fs.readFileSync('/prompts/extraction-certfr.md', 'utf8');\nreturn $input.all().map(item => {\n  const text = (item.json.content || item.json.contentSnippet || item.json.title || '').toString().slice(0, 12000);\n  return { json: { ...item.json, source_text: text, prompt: template.replace('{{TEXTE}}', text) } };\n});"
+      },
+      "name": "Préparer le prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        112
+      ],
+      "id": "610feda6-dfa6-4816-9ea9-09dca13b3c1f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OLLAMA_URL }}/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.OLLAMA_AUTH || '' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, prompt: $json.prompt, format: 'json', stream: false, options: { temperature: 0, num_ctx: 8192 } }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "name": "Ollama /api/generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1072,
+        -304
+      ],
+      "id": "aece3e90-ab6f-422a-9eec-abcbf07c925d",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// TP2 - B3 : Validation renforcée\n// Contrôles CVE, IoC, ATT&CK et instructions suspectes.\n// Complément des CVE manquantes par regex (approche hybride).\n\nconst out = [];\n\nfor (const [i, item] of $input.all().entries()) {\n\n  const src = $('Préparer le prompt').itemMatching(i).json;\n  const sourceText = String(src.source_text || '');\n  const text = sourceText.toLowerCase();\n\n  let parsed;\n\n  try {\n    parsed = JSON.parse(item.json.response);\n  } catch (e) {\n    out.push({\n      json: {\n        rejected: true,\n        reason: 'JSON invalide',\n        title: src.title\n      },\n      pairedItem: { item: i }\n    });\n    continue;\n  }\n\n  // 1. Validation des CVE proposées par le LLM\n  const llmCves = Array.isArray(parsed.cve) ? parsed.cve : [];\n\n  const validCves = llmCves.filter(c =>\n    typeof c === 'string' &&\n    /^CVE-\\d{4}-\\d{4,}$/i.test(c) &&\n    text.includes(c.toLowerCase())\n  );\n\n  // 2. Extraction indépendante des CVE par regex\n  const regexCves = [\n    ...new Set(\n      (sourceText.match(/\\bCVE-\\d{4}-\\d{4,}\\b/gi) || [])\n        .map(c => c.toUpperCase())\n    )\n  ];\n\n  // 3. Identifier et récupérer les CVE oubliées\n  const missingCves = regexCves.filter(c =>\n    !validCves.some(v => v.toUpperCase() === c)\n  );\n\n  const cves = [\n    ...new Set([\n      ...validCves.map(c => c.toUpperCase()),\n      ...missingCves\n    ])\n  ];\n\n  // 4. Validation des IoC\n  const llmIocs = Array.isArray(parsed.ioc) ? parsed.ioc : [];\n\n  const iocs = llmIocs.filter(indicator =>\n    indicator &&\n    typeof indicator.value === 'string' &&\n    text.includes(indicator.value.toLowerCase())\n  );\n\n  // 5. Validation des techniques MITRE ATT&CK\n  const llmTechniques = Array.isArray(parsed.attack_techniques)\n    ? parsed.attack_techniques\n    : [];\n\n  const techniques = llmTechniques\n    .map(t => typeof t === 'string' ? { id: t } : t)\n    .filter(t =>\n      t &&\n      typeof t.id === 'string' &&\n      /^T\\d{4}(\\.\\d{3})?$/.test(t.id) &&\n      sourceText.includes(t.id)\n    );\n\n  // 6. Tactiques ATT&CK\n  const attack = (Array.isArray(parsed.attack_tactics)\n    ? parsed.attack_tactics\n    : []\n  ).filter(t =>\n    typeof t === 'string' &&\n    /^TA\\d{4}$/.test(t)\n  );\n\n  // 7. Vérification du TLP\n  const allowedTlp = [\n    'clear', 'green', 'amber', 'amber+strict', 'red'\n  ];\n\n  const proposedTlp = String(parsed.tlp || '').toLowerCase();\n\n  const tlp = allowedTlp.includes(proposedTlp)\n    ? proposedTlp\n    : 'amber';\n\n  // 8. Détection des instructions suspectes signalées par le LLM\n  const suspicious = Array.isArray(parsed.suspicious_instructions)\n    ? parsed.suspicious_instructions\n    : [];\n\n  // 9. Statistiques de validation\n  const dropped = {\n    cve: llmCves.length - validCves.length,\n    ioc: llmIocs.length - iocs.length,\n    attack_techniques: llmTechniques.length - techniques.length\n  };\n\n  // 10. Résultat\n  out.push({\n    json: {\n      rejected: suspicious.length > 0,\n      reason: suspicious.length > 0\n        ? 'Injection de prompt suspectée — validation humaine obligatoire'\n        : null,\n\n      title: src.title,\n      link: src.link,\n\n      summary: String(parsed.summary || '').slice(0, 1000),\n\n      products: (\n        Array.isArray(parsed.products) ? parsed.products : []\n      ).slice(0, 20),\n\n      cve: cves,\n      ioc: iocs,\n\n      attack_tactics: attack,\n      attack_techniques: techniques,\n\n      tlp,\n\n      dropped,\n\n      missing_cves_recovered: missingCves,\n\n      suspicious_instructions: suspicious,\n      requires_human_review: suspicious.length > 0,\n\n      latency_ms: item.json.total_duration != null\n        ? Math.round(item.json.total_duration / 1e6)\n        : null,\n\n      model: item.json.model\n    },\n\n    pairedItem: { item: i }\n  });\n}\n\nreturn out;"
+      },
+      "name": "Valider (schéma + littéralité)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        112
+      ],
+      "id": "929dc53c-3506-420f-a5dd-99e01191b251"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.rejected }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        112
+      ],
+      "id": "9bd95e7e-fec2-44b4-aa75-fe758649eb2c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construit l'événement MISP. Le tag workflow:ia-non-verifie est obligatoire.\n// Catégories MISP : hash -> Payload delivery ; CVE -> External analysis ; IP/domaine/URL -> Network activity.\nconst TYPE_MAP = { ip: 'ip-dst', domain: 'domain', hostname: 'hostname', url: 'url', md5: 'md5', sha1: 'sha1', sha256: 'sha256', email: 'email-src' };\nconst CATEGORY = { md5: 'Payload delivery', sha1: 'Payload delivery', sha256: 'Payload delivery', 'email-src': 'Payload delivery',\n                   vulnerability: 'External analysis', 'ip-dst': 'Network activity', domain: 'Network activity',\n                   hostname: 'Network activity', url: 'Network activity' };\n// Tags ATT&CK : galaxie MISP seulement si on a un nom (\"Nom - T1234\") ; sinon tag simple attack:T1234 ;\n// les tactiques (TAxxxx) n'ont pas de galaxie attack-pattern : tag simple attack-tactic:TAxxxx.\nfunction attackTag(id, name) {\n  id = String(id).toUpperCase();\n  if (id.startsWith('TA')) return 'attack-tactic:' + id;\n  if (name) return 'misp-galaxy:mitre-attack-pattern=\"' + name + ' - ' + id + '\"';\n  return 'attack:' + id;\n}\nreturn $input.all().map(item => {\n  const j = item.json;\n  const attrs = [];\n  for (const c of j.cve) attrs.push({ type: 'vulnerability', category: CATEGORY.vulnerability, value: c, to_ids: false });\n  for (const i of j.ioc) {\n    const t = TYPE_MAP[String(i.type || '').toLowerCase()];\n    if (t) attrs.push({ type: t, category: CATEGORY[t] || 'Network activity', value: i.value, to_ids: false, comment: 'extrait par LLM - a verifier' });\n  }\n  for (const p of j.products) attrs.push({ type: 'text', category: 'Other', value: 'Produit: ' + p, to_ids: false });\n  attrs.push({ type: 'link', category: 'External analysis', value: j.link || 'n/a', to_ids: false });\n  attrs.push({ type: 'comment', category: 'Other', value: j.summary, to_ids: false });\n  const tags = [ { name: 'tlp:' + j.tlp }, { name: 'workflow:ia-non-verifie' }, { name: 'source:cert-fr' } ];\n  for (const t of (j.attack_tactics || [])) tags.push({ name: attackTag(t) });\n  for (const t of (j.attack_techniques || [])) tags.push({ name: attackTag(t.id, t.name) });\n  return { json: { Event: { info: '[CERT-FR] ' + j.title, distribution: 0, threat_level_id: 2, analysis: 0, Attribute: attrs, Tag: tags } , meta: j } };\n});"
+      },
+      "name": "Construire l'événement MISP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        0
+      ],
+      "id": "47ddaacf-67c9-48fd-bc8a-f1b39ff55be9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MISP_URL }}/events/add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.MISP_API_KEY }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ Event: $json.Event }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          },
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "name": "MISP /events/add",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "id": "3e1917f6-31d1-49b0-8657-abea84c18d9b"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Journal des rejets et des mesures, pour le livrable eval-extraction.md\n// Mode « Run Once for All Items » : on itère sur $input.all() (et non sur $json, qui ne vaut que pour le premier item).\nconst fs = require('fs');\nfor (const item of $input.all()) {\n  const line = JSON.stringify({ ts: new Date().toISOString(), ...item.json }) + '\\n';\n  fs.appendFileSync('/out/certfr-rejets.jsonl', line);\n}\nreturn $input.all();"
+      },
+      "name": "Journal des rejets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        224
+      ],
+      "id": "ecd549a2-d240-429b-aee1-2ac1cea3b54c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mesures par alerte (latence, nb CVE/IoC retenus et écartés, id MISP) pour le livrable eval-extraction.md.\nconst fs = require('fs');\nfor (const [i, item] of $input.all().entries()) {\n  const m = $('Construire l\\'événement MISP').itemMatching(i).json.meta;\n  fs.appendFileSync('/out/certfr-mesures.jsonl', JSON.stringify({ ts: new Date().toISOString(), title: m.title, model: m.model, latency_ms: m.latency_ms, n_cve: m.cve.length, n_ioc: m.ioc.length, dropped: m.dropped, tlp: m.tlp, misp_event_id: item.json.Event ? item.json.Event.id : null }) + '\\n');\n}\nreturn $input.all();"
+      },
+      "name": "Journal des mesures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        0
+      ],
+      "id": "7d726c92-985b-434d-a729-bab18fffc3d3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\n\nconst results = [];\n\nfor (const [i, item] of $input.all().entries()) {\n\n  const title = item.json.title;\n\n  const filename = title.replace(\n    /\\.(xml|txt)$/,\n    '.llm.json'\n  );\n\n  const filepath =\n    '/data/llm-precalcule/tp2/' + filename;\n\n  if (!fs.existsSync(filepath)) {\n    throw new Error('Fichier introuvable : ' + filepath);\n  }\n\n  const llmResult = JSON.parse(\n    fs.readFileSync(filepath, 'utf8')\n  );\n\n  results.push({\n    json: {\n      model: 'qwen2.5:7b-instruct (pré-calculé)',\n      response: JSON.stringify(llmResult)\n    },\n    pairedItem: {\n      item: i\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        112
+      ],
+      "id": "6ae75f7b-78d7-48ad-ab59-f26a46c976b0",
+      "name": "LLM précalculé"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cron (toutes les heures)": {
+      "main": [
+        []
+      ]
+    },
+    "Exécution manuelle (TP)": {
+      "main": [
+        [
+          {
+            "node": "Lecture fichiers test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS CERT-FR (alertes)": {
+      "main": [
+        [
+          {
+            "node": "Filtre nouveautés",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lecture fichiers test": {
+      "main": [
+        [
+          {
+            "node": "Filtre nouveautés",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtre nouveautés": {
+      "main": [
+        [
+          {
+            "node": "Préparer le prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer le prompt": {
+      "main": [
+        [
+          {
+            "node": "LLM précalculé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama /api/generate": {
+      "main": [
+        []
+      ]
+    },
+    "Valider (schéma + littéralité)": {
+      "main": [
+        [
+          {
+            "node": "Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valide ?": {
+      "main": [
+        [
+          {
+            "node": "Construire l'événement MISP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Journal des rejets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire l'événement MISP": {
+      "main": [
+        []
+      ]
+    },
+    "MISP /events/add": {
+      "main": [
+        [
+          {
+            "node": "Journal des mesures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM précalculé": {
+      "main": [
+        [
+          {
+            "node": "Valider (schéma + littéralité)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9ee47b8d-1aa9-4991-9b47-844490bc3a08",
+  "meta": {
+    "instanceId": "c344f1a2a3f7240540b217771ad205ca63c7d4f0eb849445bc047eb9141055ad"
+  },
+  "id": "MD24NBVUzKvFlnLH",
+  "tags": [
+    {
+      "updatedAt": "2026-11-09T15:51:42.024Z",
+      "createdAt": "2026-11-09T15:51:42.024Z",
+      "id": "MaJD3J0UbTqwIWEM",
+      "name": "IT320"
+    }
+  ]
+}
