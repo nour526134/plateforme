@@ -4,7 +4,7 @@ status: experimental
 description: Détecte un PowerShell avec commande encodée et fenêtre cachée dont le parent est une application Office, typique d'une macro malveillante.
 references:
   - https://attack.mitre.org/techniques/T1059/001/
-author: IT320 (exemple enseignant)
+author: César Lizurey
 date: 2026-09-14
 tags:
   - attack.execution

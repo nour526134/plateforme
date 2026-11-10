@@ -49,9 +49,12 @@ for h in sorted(hashes):
 for u in sorted(urls):
     attributes.append(attr("url", u, category="Payload delivery", to_ids=True, comment="téléchargement observé"))
 
+# MISP 2.5.50 ignore sans message un objet envoyé sans son gabarit (template_uuid et template_version) :
+# constaté le 3 novembre 2026, l'événement était créé sans aucun objet credential.
+CREDENTIAL_TEMPLATE = {"template_uuid": "a27e98c9-9b0e-414c-8076-d201e039ca09", "template_version": "5"}
 objects = []
 for (user, pwd), n in creds.most_common(50):
-    objects.append({"name": "credential", "meta-category": "misc", "description": "Identifiant tenté sur le honeypot",
+    objects.append({"name": "credential", "meta-category": "misc", "description": "Identifiant tenté sur le honeypot", **CREDENTIAL_TEMPLATE,
                     "Attribute": [
                         {"object_relation": "username", "type": "text", "value": user or "(vide)"},
                         {"object_relation": "password", "type": "text", "value": pwd or "(vide)", "comment": f"{n} tentatives"},
@@ -59,8 +62,19 @@ for (user, pwd), n in creds.most_common(50):
 
 misp = Misp()
 ev = misp.add_event(f"Honeypot Cowrie — {date.today().isoformat()}", attributes, tags=("tlp:green", "source:honeypot"), objects=objects)
-print(f"Événement MISP #{ev['id']} créé : {len(attributes)} attributs, {len(objects)} objets credential, {len(ips)} IP sources")
+# On compte ce que MISP a gardé, pas ce qu'on lui a envoyé.
+print(f"Événement MISP #{ev['id']} créé : {len(ev.get('Attribute', []))} attributs, {len(ev.get('Object', []))} objets credential "
+      f"(sur {len(objects)} envoyés), {len(ips)} IP sources")
 
-# Corrélation rapide : quelles IP sont déjà connues d'un flux (ex. Feodo Tracker) ?
-known = [ip for ip in ips if any(a.get("event_id") != ev["id"] for a in misp.search_attributes(ip))]
-print("IP déjà présentes dans un autre événement (flux) :", ", ".join(known) or "aucune")
+# Corrélation rapide : quelles IP figurent déjà dans un autre événement (flux, alerte CERT-FR…) ?
+# Les autres événements « Honeypot Cowrie » sont écartés : relancer le script ne doit pas faire croire qu'une IP
+# est connue d'un flux (constaté le 3 novembre 2026 : sans ce filtre, les 34 IP sortaient au second lancement).
+known = {}
+for ip in ips:
+    for a in misp.search_attributes(ip):
+        info = a.get("Event", {}).get("info", "")
+        if a.get("event_id") != ev["id"] and not info.startswith("Honeypot Cowrie"):
+            known.setdefault(ip, set()).add(f"#{a['event_id']} {info[:60]}")
+print("IP déjà présentes dans un autre événement (hors événements Cowrie) :", "aucune" if not known else "")
+for ip, evs in known.items():
+    print(f"  {ip} : {' ; '.join(sorted(evs))}")

@@ -159,6 +159,12 @@ if __name__ == "__main__":
             sys.exit(f"Règle invalide : champ '{k}' manquant")
     if "condition" not in rule["detection"]:
         sys.exit("Règle invalide : pas de condition")
+    # Une condition qui cite une sélection absente faisait planter le testeur (règle générée par LLM, 3 novembre 2026).
+    noms = [k for k in rule["detection"] if k != "condition"]
+    for t in re.findall(r"\(|\)|\band\b|\bor\b|\bnot\b|1 of \S+|all of \S+|\S+", str(rule["detection"]["condition"])):
+        if t not in ("(", ")", "and", "or", "not") and not re.match(r"(1|all) of ", t) and t not in noms:
+            sys.exit(f"Règle invalide : la condition cite « {t} », qui n'est pas une sélection de detection "
+                     f"(sélections définies : {', '.join(noms) or 'aucune'})")
     mal, ben = run(rule, sys.argv[2]), run(rule, sys.argv[3])
     tp = sum(1 for n in mal.values() if n > 0)
     fn = sum(1 for n in mal.values() if n == 0)
